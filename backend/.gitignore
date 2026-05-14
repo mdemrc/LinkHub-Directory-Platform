@@ -1,0 +1,25 @@
+node_modules/
+dist/
+build/
+
+# Environment - never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Prisma generated
+/generated/prisma/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Archives
+*.rar
+*.zip
+*.bak
+*.backup
+*.sql

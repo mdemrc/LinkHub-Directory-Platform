@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 80" fill="none">
+  <defs>
+    <linearGradient id="iconBg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00e0ff"/>
+      <stop offset="100%" stop-color="#0090cc"/>
+    </linearGradient>
+  </defs>
+  <!-- Icon -->
+  <rect x="8" y="8" width="64" height="64" rx="14" fill="url(#iconBg)"/>
+  <g transform="translate(18,18) scale(1.833)" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+  </g>
+  <!-- Text -->
+  <text x="88" y="52" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="36" font-weight="800" letter-spacing="2" fill="#ffffff">LINKZONE</text>
+</svg>

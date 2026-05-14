@@ -1,0 +1,885 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// LinkHub v2 - Prisma Schema (MySQL)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// USER - Kullanıcı sistemi
+// ═══════════════════════════════════════════════════════════════════════════════
+model User {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique @db.VarChar(50)
+  email         String    @unique @db.VarChar(255)
+  password      String    @db.VarChar(255) // bcrypt hash
+  
+  role          UserRole  @default(USER)
+  
+  // Profil
+  avatar        String?   @db.VarChar(500)
+  bio           String?   @db.Text
+  
+  // Durum
+  isActive      Boolean   @default(true)
+  isVerified    Boolean   @default(false)
+  
+  lastLogin     DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // İlişkiler
+  favorites     Favorite[]
+  submittedLinks LinkSubmission[]
+  
+  @@index([email])
+  @@index([username])
+}
+
+enum UserRole {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FAVORITE - Kullanıcı favorileri
+// ═══════════════════════════════════════════════════════════════════════════════
+model Favorite {
+  id        Int      @id @default(autoincrement())
+  
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  linkId    Int
+  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@unique([userId, linkId])
+  @@index([userId])
+  @@index([linkId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LINK_SUBMISSION - Kullanıcı/Anonim link önerileri (onay bekleyen)
+// ═══════════════════════════════════════════════════════════════════════════════
+model LinkSubmission {
+  id            Int       @id @default(autoincrement())
+  
+  // Link bilgileri
+  title         String    @db.VarChar(200)
+  url           String    @db.VarChar(500)
+  mirrorUrl        String?   @db.VarChar(500)
+  altUrl        String?   @db.VarChar(500)
+  description   String?   @db.Text
+  
+  // Kategori ve ülke
+  categoryId    Int?
+  countryCode   String?   @db.VarChar(10) // ISO country code for flag (US, TR, DE...)
+  
+  // İletişim
+  contactEmail  String?   @db.VarChar(255)
+  
+  // Gönderen
+  userId        Int?      // null = anonim
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  submitterIp   String?   @db.VarChar(50)
+  
+  status        SubmissionStatus @default(PENDING)
+  
+  // Admin notları
+  adminNote     String?   @db.Text
+  reviewedAt    DateTime?
+  reviewedBy    Int?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([status])
+  @@index([userId])
+}
+
+enum SubmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CATEGORY - Ana kategoriler (directory Links, Crypto, Privacy & Security...)
+// Üst navigasyonda tab olarak görünür
+// ═══════════════════════════════════════════════════════════════════════════════
+model Category {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(100)
+  slug          String    @unique @db.VarChar(100)
+  icon          String?   @db.VarChar(100)
+  description   String?   @db.Text
+  
+  // Country subcategory: when set, this subcategory represents a country/language
+  countryCode   String?   @db.VarChar(10)
+  
+  // Parent category for subcategory support
+  parentId      Int?
+  parent        Category? @relation("CategoryChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children      Category[] @relation("CategoryChildren")
+  
+  // SUBCATEGORY = show links grouped by subcategories (default)
+  // COUNTRY = show links grouped by country/language (for forums)
+  displayMode   String    @default("SUBCATEGORY") @db.VarChar(20)
+  
+  order         Int       @default(0)
+  isActive      Boolean   @default(true)
+  showInNav     Boolean   @default(true)
+  showOnParent  Boolean   @default(false)
+  displayLimit  Int?      // Max links to show before "Show more" (null = show all)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  links             Link[]
+  contactMessages   ContactMessage[]
+  
+  @@index([slug])
+  @@index([order])
+  @@index([parentId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LINK - Siteler/Bağlantılar
+// ═══════════════════════════════════════════════════════════════════════════════
+model Link {
+  id            Int       @id @default(autoincrement())
+  title         String    @db.VarChar(200)
+  url           String    @db.VarChar(500)
+  
+  // Alternatif URL'ler
+  mirrorUrl        String?   @db.VarChar(500)    // /mirror
+  altUrl        String?   @db.VarChar(500)    // /alt
+  backupUrl String?   @db.VarChar(500)    // .bazar, .eth
+  
+  description   String?   @db.Text
+  
+  // Ülke bilgisi (link hangi ülke altında görünecek)
+  countryCode   String?   @db.VarChar(10)   // ISO 3166-1 alpha-2: tr, de, en, fr...
+  countryName   String?   @db.VarChar(100)  // Turkish, German, English...
+  
+  // Sosyal medya linkleri
+  twitterUrl    String?   @db.VarChar(500)
+  facebookUrl   String?   @db.VarChar(500)
+  telegramUrl   String?   @db.VarChar(500)
+  discordUrl    String?   @db.VarChar(500)
+  
+  // Kategori ilişkisi
+  categoryId    Int
+  category      Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  // Site durumu (otomatik kontrol)
+  status        LinkStatus @default(UNKNOWN)
+  lastChecked   DateTime?
+  responseTime  Int?      // ms cinsinden
+  isPermanentOnline Boolean @default(false) // Checker'dan muaf, her zaman online göster
+  
+  // Özel işaretler
+  isPinned      Boolean   @default(false)  // ⭐ Üstte sabitlenmiş
+  pinnedColor   String?   @db.VarChar(20)  // Custom pinned badge color (default: gold)
+  isScam        Boolean   @default(false)  // ⚠️ Dolandırıcı
+  hasMirror         Boolean   @default(false)  // alternative mirror url available
+  
+  // Görünüm özellikleri
+  textColor     String?   @db.VarChar(20)  // Custom text color for pinned/highlighted links
+  customCss     String?   @db.VarChar(500) // Inline CSS overrides (e.g. text-shadow, font-style)
+  isHighlighted Boolean   @default(false)
+  highlightColor String?  @db.VarChar(20)  // hex color
+  
+  // Rozetler (JSON: [{type: "trusted", color: "#00ff00", text: "VIP"}])
+  badges        Json?
+  
+  order         Int       @default(0)
+  isActive      Boolean   @default(true)
+  
+  // İstatistikler
+  clickCount    Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  favorites         Favorite[]
+  contactMessages   ContactMessage[]
+  
+  @@index([url])
+  @@index([categoryId])
+  @@index([countryCode])
+  @@index([status])
+  @@index([isScam])
+  @@index([isPinned])
+}
+
+enum LinkStatus {
+  ONLINE
+  OFFLINE
+  UNKNOWN
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AD - Reklamlar
+// ═══════════════════════════════════════════════════════════════════════════════
+model Ad {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(100)
+  
+  type          AdType
+  position      AdPosition
+  
+  // İçerik
+  imageUrl      String?   @db.VarChar(500)
+  linkUrl       String    @db.VarChar(500)
+  htmlContent   String?   @db.Text
+  textContent   String?   @db.Text
+  
+  // Text Ad için detaylı ayarlar
+  textTitle     String?   @db.VarChar(200)  // Text ad başlığı
+  textIcon      String?   @db.VarChar(10)   // Text ad simgesi (★, ⚡, 🔥 vb.)
+  customCss     String?   @db.Text          // Custom CSS for text ads
+  fontSize      String?   @db.VarChar(20)   // sm, md, lg, xl
+  fontWeight    String?   @db.VarChar(20)   // normal, medium, semibold, bold
+  
+  // Stil (text ads için)
+  backgroundColor String? @db.VarChar(20)
+  textColor     String?   @db.VarChar(20)
+  borderColor   String?   @db.VarChar(20)   // Custom border color
+  
+  // Boyut (banner için)
+  bannerSize    String?   @db.VarChar(10)   // xs, sm, md, lg, xl
+  width         Int?
+  height        Int?
+  
+  // Zamanlama
+  startDate     DateTime?
+  endDate       DateTime?
+  durationType  String?   @db.VarChar(20)   // 1_WEEK, 1_MONTH, 3_MONTHS, 6_MONTHS, 1_YEAR, PERMANENT
+  
+  order         Int       @default(0)
+  isActive      Boolean   @default(true)
+  
+  // İstatistikler
+  clickCount    Int       @default(0)
+  viewCount     Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([position])
+  @@index([isActive])
+}
+
+enum AdType {
+  BANNER
+  TEXT
+  HTML
+}
+
+enum AdPosition {
+  HEADER_TOP        // Banner Big (full width, large)
+  HEADER_BOTTOM     // Banner Medium (below nav)
+  SIDEBAR_LEFT      // Left sidebar (banner + text)
+  SIDEBAR_RIGHT     // Right sidebar (banner + text)
+  CONTENT_TOP       // Ad-Text Top (text ads area)
+  CONTENT_INLINE    // Banner Small
+  FOOTER            // Footer (legacy/hidden)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PACKAGE - Reklam paketleri (Pricing sayfası için)
+// ═══════════════════════════════════════════════════════════════════════════════
+model Package {
+  id            Int       @id @default(autoincrement())
+  name          String    @db.VarChar(100)  // "Small Banner"
+  slug          String    @unique @db.VarChar(100)
+  icon          String?   @db.VarChar(50)
+  
+  // Banner boyutu
+  size          String?   @db.VarChar(50)   // "468x60", "920x120"
+  
+  description   String?   @db.Text
+  subtitle      String?   @db.VarChar(200)  // "Advertise within the sidebar / x10"
+  
+  // Özellikler (JSON array)
+  // ["Visible on all pages", "Premium header placement", "Highlighted in sites area"]
+  features      Json
+  
+  // Fiyatlandırma (JSON array)
+  // [{duration: "1_month", label: "1 month", price: 75, currency: "EUR", discount: 0}]
+  prices        Json
+  
+  maxSlots      Int?      // Kaç adet satılabilir
+  
+  order         Int       @default(0)
+  isActive      Boolean   @default(true)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AD_PRICING - Reklam fiyat tablosu (yeni sistem)
+// ═══════════════════════════════════════════════════════════════════════════════
+model AdPricing {
+  id            Int       @id @default(autoincrement())
+  
+  type          AdType    // BANNER or TEXT
+  position      AdPosition? // Position where this ad will be placed
+  bannerSize    String?   @db.VarChar(10)  // xs, sm, md, lg, xl
+  
+  displayName   String?   @db.VarChar(100) // Card title (e.g. "Small Banner")
+  description   String?   @db.VarChar(500) // Card subtitle (e.g. "Size: 468×60")
+  previewLabel  String?   @db.VarChar(100) // Custom label shown in site preview on hover
+  features      Json?     // Array of feature strings shown on card
+  
+  // Fiyatlar (USD cinsinden)
+  priceWeek     Float     @default(0)    // 1 Hafta (test)
+  priceMonth    Float     @default(0)    // 1 Ay
+  price2Months  Float     @default(0)    // 2 Ay
+  price3Months  Float     @default(0)    // 3 Ay
+  price6Months  Float     @default(0)    // 6 Ay
+  priceYear     Float     @default(0)    // 1 Yıl
+  
+  isActive      Boolean   @default(true)
+  order         Int       @default(0)
+  
+  // Card decoration (admin-configurable)
+  badgeType     String?   @db.VarChar(20)  // none, popular, premium, custom
+  badgeText     String?   @db.VarChar(50)  // Custom badge text (e.g. "Popular", "Premium", "Best Value")
+  badgeIcon     String?   @db.VarChar(100) // Icon name for badge (Feather/FA icon or emoji)
+  badgeColor    String?   @db.VarChar(20)  // Badge background color (e.g. "#10b981")
+  glowEnabled   Boolean   @default(false)
+  glowColor     String?   @db.VarChar(20)  // Hex color for glow effect (e.g. "#ff6b00")
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AD_ORDER_REQUEST - Reklam sipariş talepleri
+// ═══════════════════════════════════════════════════════════════════════════════
+model AdOrderRequest {
+  id            Int       @id @default(autoincrement())
+  
+  // Reklam bilgileri
+  adType        AdType    // BANNER or TEXT
+  adPosition    AdPosition? // Where the ad will be placed
+  adTitle       String    @db.VarChar(200)
+  adLink        String    @db.VarChar(500)  // Target URL (where users go when clicking)
+  adBannerUrl   String?   @db.VarChar(500)  // Banner image URL
+  bannerSize    String?   @db.VarChar(10)   // xs, sm, md, lg, xl
+  
+  // Süre ve fiyat
+  duration      String    @db.VarChar(20)  // WEEK, MONTH, 2_MONTHS, 3_MONTHS, 6_MONTHS, YEAR
+  price         Float
+  
+  // Müşteri bilgileri
+  contactInfo   String    @db.VarChar(500) // Email, Telegram, TOX vb.
+  
+  // Ödeme bilgileri
+  paymentMethod String    @db.VarChar(50)  // BTC, ETH, LTC, USDT vb.
+  
+  // NowPayments fields
+  nowpaymentId  String?   @unique @db.VarChar(100) // NowPayments payment_id
+  payAddress    String?   @db.VarChar(255) // Crypto address to pay
+  payCurrency   String?   @db.VarChar(20)  // btc, eth, ltc etc.
+  payAmount     Float?    // Amount to pay in crypto
+  actuallyPaid  Float?    // Amount actually received
+  
+  paymentStatus String    @default("PENDING") @db.VarChar(20) // PENDING, CONFIRMING, COMPLETED, EXPIRED, FAILED
+  paidAt        DateTime?
+  
+  // Sipariş durumu
+  status        String    @default("PENDING") @db.VarChar(20) // PENDING, APPROVED, REJECTED, ACTIVE, EXPIRED
+  
+  // Created Ad reference
+  createdAdId   Int?      // ID of the Ad created from this order
+  
+  // Admin notları
+  adminNotes    String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  expiresAt     DateTime? // Reklam bitiş tarihi
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AD_SETTINGS - Reklam ayarları
+// ═══════════════════════════════════════════════════════════════════════════════
+model AdSettings {
+  id              Int       @id @default(autoincrement())
+  
+  // Sayfa başlığı ve açıklaması
+  pageTitle       String    @default("Advertising") @db.VarChar(200)
+  pageSubtitle    String?   @db.Text  // Açıklama metni
+  
+  // Slot bilgileri
+  maxBannerSlots  Int       @default(6)
+  maxTextSlots    Int       @default(5)
+  
+  // Banner boyutu bilgisi
+  bannerSize      String    @default("468x64") @db.VarChar(50)
+  bannerPosition  String    @default("Header") @db.VarChar(100)
+  
+  // How to order adımları (JSON array)
+  howToOrderSteps Json      @default("[]")
+  
+  // Aktif ödeme yöntemleri (JSON array: ["BTC", "ETH", "LTC"])
+  paymentMethods  Json      @default("[\"BTC\"]")
+  
+  // NowPayments Configuration
+  nowpaymentsApiKey    String?   @db.VarChar(255)
+  nowpaymentsIpnSecret String?   @db.VarChar(255)
+  nowpaymentsEnabled   Boolean   @default(false)
+  
+  // Enabled cryptocurrencies (JSON object: {"btc": true, "eth": true, "ltc": false})
+  enabledCryptos       Json      @default("{\"btc\": true, \"eth\": true, \"ltc\": true, \"xmr\": true}")
+  
+  // Auto-place: When true, ads are auto-created on payment completion. When false, admin must manually activate.
+  autoPlaceEnabled     Boolean   @default(true)
+  
+  // Special advertising contact link
+  specialAdLink        String?   @db.VarChar(500)
+  
+  // Pinned link badge (star) size in px
+  pinnedBadgeSize      Int       @default(14)
+  
+  // Country flag size in px
+  flagSize             Int       @default(14)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHANGELOG - Versiyon geçmişi
+// ═══════════════════════════════════════════════════════════════════════════════
+model Changelog {
+  id            Int       @id @default(autoincrement())
+  version       String    @db.VarChar(20)   // "4.7.2"
+  title         String    @db.VarChar(200)  // "LinkHub"
+  
+  // Değişiklikler (JSON array of strings)
+  changes       Json
+  
+  status        ChangelogStatus @default(COMMITTED)
+  publishedAt   DateTime?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([version])
+}
+
+enum ChangelogStatus {
+  PLANNED
+  COMMITTED
+  PUBLISHED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCAM_REPORT - Dolandırıcı site listesi
+// ═══════════════════════════════════════════════════════════════════════════════
+model ScamReport {
+  id            Int       @id @default(autoincrement())
+  siteName      String    @db.VarChar(200)
+  siteUrl       String?   @db.VarChar(500)
+  
+  category      String    @db.VarChar(50)   // "Forumlar", "Mağazalar"
+  reason        String?   @db.Text
+  
+  isVerified    Boolean   @default(false)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([category])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FAQ_ITEM - Sıkça Sorulan Sorular
+// ═══════════════════════════════════════════════════════════════════════════════
+model FaqItem {
+  id            Int       @id @default(autoincrement())
+  question      String    @db.VarChar(500)
+  answer        String    @db.Text          // Markdown destekli
+  
+  category      String?   @db.VarChar(100)  // "General", "Advertising", "Technical"
+  
+  order         Int       @default(0)
+  isActive      Boolean   @default(true)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([category])
+  @@index([order])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE - Dinamik sayfalar (Contact, FAQ, API, vb.)
+// ═══════════════════════════════════════════════════════════════════════════════
+model Page {
+  id            Int       @id @default(autoincrement())
+  title         String    @db.VarChar(200)
+  slug          String    @unique @db.VarChar(100)
+  content       String    @db.LongText      // Markdown veya HTML
+  
+  // Hangi menüde gösterilecek
+  // "information" = Information dropdown
+  // "footer" = Footer linkler
+  // "misc" = Information > Misc alt menü
+  // null = Menüde gösterme
+  menuLocation  String?   @db.VarChar(50)
+  menuLabel     String?   @db.VarChar(100)  // Menüde görünecek isim
+  
+  // Sayfa tipi (özel render için)
+  pageType      PageType  @default(CONTENT)
+  
+  order         Int       @default(0)
+  isActive      Boolean   @default(true)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum PageType {
+  CONTENT     // Normal içerik sayfası
+  CONTACT     // İletişim formu
+  PRICING     // Fiyatlandırma (Package'lardan çeker)
+  CHANGELOG   // Değişiklik günlüğü
+  SCAM        // Scam listesi
+  FAQ         // SSS
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LANGUAGE - Desteklenen diller
+// ═══════════════════════════════════════════════════════════════════════════════
+model Language {
+  id            Int       @id @default(autoincrement())
+  code          String    @unique @db.VarChar(10) // tr, en, de
+  name          String    @db.VarChar(50)         // Türkçe, English
+  nativeName    String    @db.VarChar(50)         // Türkçe, English
+  flag          String?   @db.VarChar(10)         // 🇹🇷, 🇬🇧
+  
+  isDefault     Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  
+  order         Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  translations  Translation[]
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRANSLATION - Çeviriler (i18n)
+// Statik metinler için
+// ═══════════════════════════════════════════════════════════════════════════════
+model Translation {
+  id            Int       @id @default(autoincrement())
+  key           String    @db.VarChar(200)  // "nav.boards", "common.search"
+  value         String    @db.Text
+  
+  languageId    Int
+  language      Language  @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  
+  category      String    @default("common") @db.VarChar(50)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@unique([key, languageId])
+  @@index([languageId])
+  @@index([key])
+  @@index([category])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SETTING - Site ayarları (key-value)
+// ═══════════════════════════════════════════════════════════════════════════════
+model Setting {
+  id            Int       @id @default(autoincrement())
+  key           String    @unique @db.VarChar(100)
+  value         Json      // Herhangi bir değer
+  
+  // Gruplandırma
+  category      String    @default("general") @db.VarChar(50)
+  
+  // Açıklama (admin için)
+  description   String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([category])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONTACT_INFO - İletişim bilgileri
+// ═══════════════════════════════════════════════════════════════════════════════
+model ContactInfo {
+  id            Int       @id @default(autoincrement())
+  type          String    @db.VarChar(50)   // "xmpp", "email", "telegram"
+  label         String    @db.VarChar(100)  // "XMPP / Jabber"
+  value         String    @db.VarChar(500)  // "LinkBaseORG@jabb3r.org"
+  extra         String?   @db.VarChar(500)  // OTR fingerprint vb.
+  
+  order         Int       @default(0)
+  isActive      Boolean   @default(true)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATS_DAILY - Günlük istatistikler
+// ═══════════════════════════════════════════════════════════════════════════════
+model StatsDaily {
+  id            Int       @id @default(autoincrement())
+  date          DateTime  @db.Date
+  
+  totalLinks    Int       @default(0)
+  onlineLinks   Int       @default(0)
+  offlineLinks  Int       @default(0)
+  totalUsers    Int       @default(0)
+  totalVisits   Int       @default(0)
+  
+  createdAt     DateTime  @default(now())
+  
+  @@unique([date])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AD_ORDER - Reklam siparişleri (kullanıcı ödeme yaptığında oluşur)
+// ═══════════════════════════════════════════════════════════════════════════════
+model AdOrder {
+  id            Int           @id @default(autoincrement())
+  orderNumber   String        @unique @db.VarChar(50) // ORD-20250101-XXXX
+  
+  // Müşteri bilgileri
+  customerEmail String        @db.VarChar(255)
+  customerName  String?       @db.VarChar(100)
+  
+  // Paket bilgileri (sipariş anındaki değerler)
+  packageId     Int
+  packageName   String        @db.VarChar(100)
+  duration      String        @db.VarChar(50)   // "1_MONTH", "3_MONTHS"
+  durationLabel String        @db.VarChar(50)   // "1 Month", "3 Months"
+  
+  // Fiyat bilgileri (sipariş anındaki değerler)
+  priceAmount   Decimal       @db.Decimal(10, 2)
+  priceCurrency String        @db.VarChar(10)   // EUR, USD
+  
+  // Reklam detayları (müşteri girdisi)
+  adType        AdType        @default(BANNER)
+  adTitle       String?       @db.VarChar(200)
+  adUrl         String?       @db.VarChar(500)
+  adImageUrl    String?       @db.VarChar(500)  // Banner için
+  adDescription String?       @db.Text
+  
+  // Ödeme bilgileri
+  paymentId     Int?          @unique
+  payment       Payment?      @relation(fields: [paymentId], references: [id])
+  
+  // Durum
+  status        OrderStatus   @default(PENDING_PAYMENT)
+  
+  // Admin tarafından oluşturulan Ad
+  createdAdId   Int?          // Sipariş onaylandığında oluşturulan reklam ID'si
+  
+  // Notlar
+  adminNotes    String?       @db.Text
+  customerNotes String?       @db.Text
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  @@index([customerEmail])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT   // Ödeme bekleniyor
+  PAYMENT_RECEIVED  // Ödeme alındı, admin onayı bekleniyor
+  APPROVED          // Onaylandı, reklam oluşturuldu
+  REJECTED          // Reddedildi
+  EXPIRED           // Ödeme süresi doldu
+  REFUNDED          // İade edildi
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAYMENT - Ödeme kayıtları (NowPayments vb.)
+// ═══════════════════════════════════════════════════════════════════════════════
+model Payment {
+  id              Int           @id @default(autoincrement())
+  
+  // NowPayments bilgileri
+  nowpaymentId    String?       @unique @db.VarChar(100)  // NowPayments payment_id
+  invoiceUrl      String?       @db.VarChar(500)          // NowPayments ödeme sayfası
+  
+  // Ödeme detayları
+  payAddress      String?       @db.VarChar(200)          // Kripto cüzdan adresi
+  payCurrency     String?       @db.VarChar(20)           // BTC, ETH, XMR, USDT
+  payAmount       Decimal?      @db.Decimal(20, 8)        // Kripto miktarı
+  
+  actuallyPaid    Decimal?      @db.Decimal(20, 8)        // Gerçekte ödenen
+  
+  // Orijinal fiyat (fiat)
+  priceAmount     Decimal       @db.Decimal(10, 2)
+  priceCurrency   String        @db.VarChar(10)           // EUR, USD
+  
+  // Durum
+  status          PaymentStatus @default(WAITING)
+  
+  // Webhook'tan gelen ham veri
+  rawWebhookData  Json?
+  
+  // Zaman damgaları
+  paidAt          DateTime?
+  expiredAt       DateTime?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // İlişki
+  order           AdOrder?
+  
+  @@index([nowpaymentId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum PaymentStatus {
+  WAITING           // Ödeme bekleniyor
+  CONFIRMING        // Blockchain onayı bekleniyor
+  CONFIRMED         // Onaylandı
+  SENDING           // Gönderiliyor (internal)
+  PARTIALLY_PAID    // Kısmi ödeme
+  FINISHED          // Tamamlandı
+  FAILED            // Başarısız
+  REFUNDED          // İade edildi
+  EXPIRED           // Süresi doldu
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TELEGRAM_SETTINGS - Telegram bildirim ayarları
+// ═══════════════════════════════════════════════════════════════════════════════
+model TelegramSettings {
+  id              Int       @id @default(autoincrement())
+  
+  // Bot ayarları
+  botToken        String?   @db.VarChar(255)
+  chatId          String?   @db.VarChar(100)  // Group/Channel ID
+  
+  // Aktif mi
+  enabled         Boolean   @default(false)
+  
+  // Bildirim türleri
+  notifyPayments  Boolean   @default(true)   // Ödeme bildirimleri
+  notifyOrders    Boolean   @default(true)   // Yeni sipariş bildirimleri
+  notifyLinks     Boolean   @default(true)   // Yeni link submission bildirimleri
+  
+  // Mesaj şablonları (placeholders: {orderId}, {amount}, {currency}, {status}, {title}, {contact})
+  paymentReceivedTemplate   String?  @db.Text
+  paymentConfirmedTemplate  String?  @db.Text
+  newOrderTemplate          String?  @db.Text
+  newLinkTemplate           String?  @db.Text
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONTACT_MESSAGE - İletişim mesajları / Scam raporları
+// ═══════════════════════════════════════════════════════════════════════════════
+model ContactMessage {
+  id            Int       @id @default(autoincrement())
+  telegram      String?   @db.VarChar(100)
+  
+  // Rapor edilen link (opsiyonel)
+  categoryId    Int?
+  category      Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  linkId        Int?
+  link          Link?     @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  
+  message       String    @db.Text
+  
+  status        MessageStatus @default(PENDING)
+  adminNote     String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([status])
+  @@index([categoryId])
+  @@index([linkId])
+}
+
+enum MessageStatus {
+  PENDING
+  READ
+  ARCHIVED
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANNOUNCEMENT - Site-wide announcement system
+// ═══════════════════════════════════════════════════════════════════════════════
+model Announcement {
+  id              Int       @id @default(autoincrement())
+  
+  title           String    @db.VarChar(200)
+  content         String    @db.Text
+  
+  // Display type
+  type            AnnouncementType @default(MODAL)
+  
+  // Modal settings
+  showOnPageLoad  Boolean   @default(true)
+  showEveryVisit  Boolean   @default(false)
+  autoClose       Boolean   @default(false)
+  autoCloseDuration Int     @default(10)          // seconds
+  allowManualClose Boolean  @default(true)
+  
+  // Styling
+  backgroundColor String?  @db.VarChar(20)
+  textColor       String?  @db.VarChar(20)
+  borderColor     String?  @db.VarChar(20)
+  
+  // Scheduling
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  // Priority (higher = shown first)
+  priority        Int       @default(0)
+  
+  isActive        Boolean   @default(true)
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([isActive])
+  @@index([priority])
+}
+
+enum AnnouncementType {
+  MODAL       // Full modal popup
+  BANNER      // Top banner bar
+  TOAST       // Small notification toast
+}

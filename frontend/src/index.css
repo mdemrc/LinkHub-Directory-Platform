@@ -1,0 +1,251 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #1a1a2e;
+  color: #e4e4e7;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f0f23;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2d2d44;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3d3d54;
+}
+
+/* Link styles */
+a {
+  color: #60a5fa;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: #93c5fd;
+}
+
+/* Status indicators */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-online {
+  background-color: #22c55e;
+  box-shadow: 0 0 6px #22c55e;
+}
+
+.status-offline {
+  background-color: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+.status-unknown {
+  background-color: #eab308;
+  box-shadow: 0 0 6px #eab308;
+}
+
+/* Pinned/Starred link styles */
+.link-pinned {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.link-highlighted {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Text ad animation */
+@keyframes textAdSlide {
+  0% { opacity: 0; transform: translateY(-10px); }
+  10% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(10px); }
+}
+
+.text-ad-animate {
+  animation: textAdSlide 5s ease-in-out infinite;
+}
+
+/* ========================================
+   TEXT ADS - Simple Customizable Styles
+   ======================================== */
+
+/* Container for all text ads */
+.text-ads-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 0;
+  background: #0f0f23;
+}
+
+/* Individual text ad item */
+.text-ad-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 16px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.text-ad-item:hover {
+  filter: brightness(1.15);
+  text-decoration: none;
+}
+
+/* Star icon before text */
+.text-ad-star {
+  margin-right: 8px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Main title text */
+.text-ad-title {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Description/content text */
+.text-ad-content {
+  margin-left: 4px;
+  opacity: 0.95;
+}
+
+/* Flag emoji sizing */
+.flag-emoji {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+
+/* Category column styling */
+.category-column {
+  min-width: 180px;
+}
+
+/* Search highlight */
+.search-highlight {
+  background-color: rgba(96, 165, 250, 0.3);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Button styles */
+.btn {
+  @apply px-4 py-2 rounded font-medium transition-all duration-200;
+}
+
+.btn-primary {
+  @apply bg-lz-accent text-lz-bg hover:bg-lz-accent/90;
+}
+
+.btn-secondary {
+  @apply bg-lz-border text-lz-text hover:bg-lz-border/80;
+}
+
+.btn-danger {
+  @apply bg-lz-accent-red text-white hover:bg-lz-accent-red/90;
+}
+
+/* Global Input/Select/Textarea styles - Override browser defaults */
+input,
+select,
+textarea {
+  background-color: #16213e !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #30363d;
+  border-radius: 0.5rem;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #00d4ff;
+}
+
+/* Fix for autofill styles */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px #16213e inset !important;
+  -webkit-text-fill-color: #e4e4e7 !important;
+  caret-color: #e4e4e7 !important;
+}
+
+/* Select dropdown arrow color fix */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+/* Select option styling */
+select option {
+  background-color: #16213e;
+  color: #e4e4e7;
+}
+
+/* Input styles */
+.input {
+  @apply w-full px-3 py-2 bg-lz-bg-light border border-lz-border rounded text-lz-text placeholder-lz-text-muted focus:outline-none focus:border-lz-accent;
+}
+
+/* Card styles */
+.card {
+  @apply bg-lz-bg-light border border-lz-border rounded-lg p-4;
+}
+
+/* Dropdown styles */
+.dropdown {
+  @apply absolute top-full left-0 mt-1 bg-lz-bg-light border border-lz-border rounded-lg shadow-xl z-50 min-w-48;
+}
+
+.dropdown-item {
+  @apply px-4 py-2 hover:bg-lz-border cursor-pointer transition-colors;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin h-5 w-5 border-2 border-lz-accent border-t-transparent rounded-full;
+}

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 200" fill="none">
+  <defs>
+    <linearGradient id="iconGrad" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00e0ff"/>
+      <stop offset="100%" stop-color="#0090cc"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="600" height="200" rx="20" fill="#0d1117"/>
+  <!-- Icon -->
+  <rect x="30" y="40" width="120" height="120" rx="24" fill="url(#iconGrad)"/>
+  <g transform="translate(51,61) scale(3.25)" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+  </g>
+  <!-- Text -->
+  <text x="172" y="116" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="64" font-weight="800" letter-spacing="4" fill="#ffffff">LINKZONE</text>
+  <!-- Tagline -->
+  <text x="175" y="146" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="14" font-weight="400" fill="#6b7280">The easiest way to find quality websites in one place</text>
+</svg>
